@@ -1,0 +1,2132 @@
+type @bitstring
+type @bitwise
+
+requestAnimationFrame = (f) {
+	f()
+}
+
+get_repr_value = (val: @number) {
+    return val as @string
+}
+
+plus = (val: @bool) {
+    if (val == true) {
+        return 1
+    } else {
+        return 0
+    }
+}
+
+dec_to_bin = (inp: @number) {
+    let output = []
+    let current_value = inp
+    while current_value > 0 {
+        output.push(get_repr_value(current_value % 2))
+        current_value /%= 2
+    }
+    return "".join(output.reverse())
+}
+
+convert_to_bitstring = (value) {
+    if value.type == @string {
+        return @bitstring::{value}
+    }
+    else if value.type == @number {
+        return dec_to_bin(value)
+    }
+    else if value.type == @bool {
+        return value as @number
+    }
+    else {
+        return value as @bitstring
+    }
+}
+
+pad_with_zeroes = (item1: @bitstring, item2: @bitstring) {
+    max_length = $.max(item1.value.length, item2.value.length)
+    return [
+        "0" * (max_length-item1.value.length) + item1.value,
+        "0" * (max_length-item2.value.length) + item2.value
+    ]
+}
+
+impl @bitwise {
+    convert: (value) {
+        let current_value = value
+        let last_iteration = @NULL
+        while current_value.type != @bitstring {
+            current_value = convert_to_bitstring(current_value)
+            if current_value.type == last_iteration {
+                break
+            }
+            last_iteration = current_value.type
+        }
+        return current_value
+    },
+    and: (op1, op2) {
+        let item1 = @bitwise::convert(op1)
+        let item2 = @bitwise::convert(op2)
+        result = pad_with_zeroes(item1, item2)
+        item1 = result[0]
+        item2 = result[1]
+        let output = ""
+        for i in 0..item1.length {
+            if item1[i] == "1" && item2[i] == "1" { output += "1" }
+            else { output += "0" }
+        }
+        return @bitstring::{value: output}
+    },
+    or: (op1, op2) {
+        let item1 = @bitwise::convert(op1)
+        let item2 = @bitwise::convert(op2)
+        result = pad_with_zeroes(item1, item2)
+        item1 = result[0]
+        item2 = result[1]
+        let output = ""
+        for i in 0..item1.length {
+            if item1[i] == "1" || item2[i] == "1" { output += "1" }
+            else { output += "0" }
+        }
+        return @bitstring::{value: output}
+    },
+    xor: (op1, op2) {
+        let item1 = @bitwise::convert(op1)
+        let item2 = @bitwise::convert(op2)
+        result = pad_with_zeroes(item1, item2)
+        item1 = result[0]
+        item2 = result[1]
+        let output = ""
+        for i in 0..item1.length {
+            if (item1[i] == "1" && item2[i] == "0") || (item1[i] == "0" && item2[i] == "1") { output += "1" }
+            else { output += "0" }
+        }
+        return @bitstring::{value: output}
+    },
+    not: (op1) {
+        let item1 = @bitwise::convert(op1)
+        let output = ""
+        for i in 0..item1.value.length {
+            if item1.value[i] == "1" { output += "0" }
+            else { output += "1" }
+        }
+        return @bitstring::{value: output}
+    }
+}
+
+to_arr = (str: @string) {
+    let output = []
+    for char in str {
+        output.push(char)
+    }
+    return output
+}
+
+impl @bitwise {
+    lshift_once: (op1) {
+        let item1 = @bitwise::convert(op1)
+        let output = ""
+        for i in 1..item1.value.length {
+            output += item1.value[i]
+        }
+        return @bitstring::{value: output+"0"}
+    },
+    lshift: (op1, amount: @number = 1) {
+        let current = @bitwise::convert(op1)
+        for i in 0..amount {
+            current = @bitwise::lshift_once(current)
+        }
+        return current
+    },
+    rshift_once: (op1) {
+        let item1 = @bitwise::convert(op1)
+        let output = ""
+        for i in 0..item1.value.length-1 {
+            output += item1.value[i]
+        }
+        return @bitstring::{value: "0"+output}
+    },
+    rshift: (op1, amount: @number = 1) {
+        let current = @bitwise::convert(op1)
+        for i in 0..amount {
+            current = @bitwise::rshift_once(current)
+        }
+        return current
+    },
+    lrotate_once: (op1) {
+        let item1 = @bitwise::convert(op1)
+        let modded = "".join(to_arr(@bitwise::lshift_once(item1).value)[:item1.value.length-1])
+        return @bitstring::{value: modded + item1.value[0]}
+    },
+    lrotate: (op1, amount: @number = 1) {
+        let current = @bitwise::convert(op1)
+        for i in 0..amount {
+            current = @bitwise::lrotate_once(current)
+        }
+        return current
+    },
+    rrotate_once: (op1) {
+        let item1 = @bitwise::convert(op1)
+        let modded = "".join(to_arr(@bitwise::rshift_once(item1).value)[1:])
+        return @bitstring::{value: item1.value[item1.value.length-1] + modded}
+    },
+    rrotate: (op1, amount: @number = 1) {
+        let current = @bitwise::convert(op1)
+        for i in 0..amount {
+            current = @bitwise::rrotate_once(current)
+        }
+        return current
+    }
+}
+
+impl @bitstring {
+    new: (value) {
+        return @bitwise::convert(value)
+    }
+}
+
+impl @bitstring {
+    and: (self, other) {
+        return @bitwise::and(self, other)
+    },
+    or: (self, other) {
+        return @bitwise::or(self, other)
+    },
+    xor: (self, other) {
+        return @bitwise::xor(self, other)
+    },
+    not: (self) {
+        return @bitwise::not(self)
+    }
+}
+
+impl @bitstring {
+    lshift: (self, amount: @number=1) {
+        return @bitwise::lshift(self, amount)
+    },
+    rshift: (self, amount: @number=1) {
+        return @bitwise::rshift(self, amount)
+    },
+    lrotate: (self, amount: @number=1) {
+        return @bitwise::lrotate(self, amount)
+    },
+    rrotate: (self, amount: @number=1) {
+        return @bitwise::rrotate(self, amount)
+    }
+}
+
+let CPU;
+
+let Uint8Array = (n) {
+    let r = '0'*n
+    return r.split('').map(x=>@number(x))
+}
+
+let Array = (n) {
+    let r = '0'*n
+    return r.split('').map(x=>null)
+}
+
+// Globals for referring to registers
+let A = 7
+let B = 0
+let C = 1
+let D = 2
+let E = 3
+let H = 4
+let L = 5
+
+// Register pair numbers
+let BC = 0
+let DE = 1 
+let HL = 2
+let SP = 3
+
+// Flag numbers
+let S = 0
+let Z = 1
+let P = 2
+let CY = 3
+let AC = 4
+
+let loadCPU = () {
+	return {
+		programCounter : 0,
+		registers : Uint8Array(8),
+		registerPairs : Uint8Array(4),
+		flags : Uint8Array(5),
+		RAM : Uint8Array(65536),
+		State : {
+			WAIT : false,
+			HLDA : false,
+			HLTA : false,
+			INTE : false
+		},
+		Instructions : Array(256)
+	}
+}
+
+let elapsedTime = 0
+let frameCount = 0
+let lastTime = 0
+let drawCalls = 0
+
+let setOpcodes = () {
+	for i in 0..256 {
+		CPU.Instructions[i] = () {
+			$.print("\tINVALID OPCODE:" + i.toString(16));
+			$.print("\tProgram Counter:" + CPU.programCounter);
+			wait();
+		}
+	}
+	CPU.Instructions[0x00] =  () {
+		// NOP
+		$.print("\tNOP");
+	};
+	CPU.Instructions[0x01] =  () {
+		// LXI B, D16
+		CPU.registers[C] = CPU.RAM[CPU.programCounter++];
+		CPU.registers[B] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x02] =  () {
+		// STAX B
+		let address = (CPU.registers[B] << 8) | CPU.registers[C];
+		CPU.RAM[address] = CPU.registers[A];
+	};
+	CPU.Instructions[0x03] =  () {
+		// INX B
+		CPU.registerPairs[0]++;
+		syncRegisterWithPair(B, BC);
+	};
+	CPU.Instructions[0x04] =  () {
+		// INR B
+		setFlagACplus(CPU.registers[B], 1);
+		CPU.registers[B]++;
+		syncPairWithRegister(B, BC);
+		setFlagZ(CPU.registers[B]);
+		setFlagS(CPU.registers[B]);
+		setFlagP(CPU.registers[B]);
+	};
+	CPU.Instructions[0x05] =  () {
+		// DCR B
+		setFlagACminus(CPU.registers[B], 1);	
+		CPU.registers[B]--;
+		syncPairWithRegister(B, BC);
+		setFlagZ(CPU.registers[B]);
+		setFlagS(CPU.registers[B]);
+		setFlagP(CPU.registers[B]);
+	};
+	CPU.Instructions[0x06] =  () {
+		// MVI B, D8
+		CPU.registers[B] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x07] =  () {
+		// RLC
+		let d7 = (1 << 7) & CPU.registers[A];
+		d7 = d7 >> 7;
+		CPU.flags[CY] = d7; 
+		CPU.registers[A] = CPU.registers[A] << 1;
+		CPU.registers[A] = CPU.registers[A] | d7;
+	};
+	CPU.Instructions[0x09] =  () {
+		// DAD B
+		let temp = CPU.registerPairs[HL];
+		CPU.registerPairs[HL] += CPU.registerPairs[BC];
+		syncRegisterWithPair(H, HL);
+		setFlagCY(temp + CPU.registerPairs[BC], CPU.registerPairs[HL]); 
+	};
+	CPU.Instructions[0x0a] =  () {
+		// LDAX B
+		CPU.registers[A] = CPU.RAM[CPU.registerPairs[BC]];
+	};
+	CPU.Instructions[0x0b] =  () {
+		// DCX B
+		CPU.registerPairs[BC]--;
+		syncRegisterWithPair(B, BC);
+	};
+	CPU.Instructions[0x0c] =  () {
+		// INR C
+		setFlagACplus(CPU.registers[C], 1);
+		CPU.registers[C]++;
+		syncPairWithRegister(B, BC);
+		setFlagZ(CPU.registers[C]);
+		setFlagS(CPU.registers[C]);
+		setFlagP(CPU.registers[C]);
+	};
+	CPU.Instructions[0x0d] =  () {
+		// DCR C
+		setFlagACminus(CPU.registers[C], 1);
+		CPU.registers[C]--;
+		syncPairWithRegister(B, BC);
+		setFlagZ(CPU.registers[C]);
+		setFlagS(CPU.registers[C]);
+		setFlagP(CPU.registers[C]);
+	};
+	CPU.Instructions[0x0e] =  () {
+		// MVI C, D8
+		CPU.registers[C] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x0f] =  () {
+		// RRC
+		let d0 = 1 & CPU.registers[A];
+		CPU.flags[CY] = d0;
+		CPU.registers[A] = CPU.registers[A] >> 1;
+		CPU.registers[A] = CPU.registers[A] | (d0 << 7);
+	};
+	CPU.Instructions[0x11] =  () {
+		// LXI D, D16
+		CPU.registers[E] = CPU.RAM[CPU.programCounter++];
+		CPU.registers[D] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x12] =  () {
+		// STAX D
+		CPU.RAM[CPU.registerPairs[DE]] = CPU.registers[A];
+	};
+	CPU.Instructions[0x13] =  () {
+		// INX D
+		CPU.registerPairs[DE]++;
+		syncRegisterWithPair(D, DE);
+	};
+	CPU.Instructions[0x14] =  () {
+		// INR D
+		setFlagACplus(CPU.registers[D], 1);
+		CPU.registers[D]++;
+		syncPairWithRegister(D, DE);
+		setFlagZ(CPU.registers[D]);
+		setFlagS(CPU.registers[D]);
+		setFlagP(CPU.registers[D]);
+	};
+	CPU.Instructions[0x15] =  () {
+		// DCR D
+		setFlagACminus(CPU.registers[D], 1);
+		CPU.registers[D]--;
+		syncPairWithRegister(D, DE);
+		setFlagZ(CPU.registers[D]);
+		setFlagS(CPU.registers[D]);
+		setFlagP(CPU.registers[D]);
+	};
+	CPU.Instructions[0x16] =  () {
+		// MVI D, D8
+		CPU.registers[D] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(D, 1);
+	};
+	CPU.Instructions[0x17] =  () {
+		// RAL
+		let d0 = CPU.flags[CY];
+		CPU.flags[CY] = (CPU.registers[A] & (1 << 7)) >> 7;
+		CPU.registers[A] = CPU.registers[A] << 1;
+		CPU.registers[A] = d0 | CPU.registers[A];
+	};
+	CPU.Instructions[0x19] =  () {
+		// DAD D
+		let temp = CPU.registerPairs[HL];
+		CPU.registerPairs[HL] += CPU.registerPairs[DE];
+		syncRegisterWithPair(H, HL);
+		setFlagCY(temp + CPU.registerPairs[DE], CPU.registerPairs[HL]);
+	};
+	CPU.Instructions[0x1a] =  () {
+		// LDAX D
+		CPU.registers[A] = CPU.RAM[CPU.registerPairs[DE]];
+	};
+	CPU.Instructions[0x1b] =  () {
+		// DCX D
+		CPU.registerPairs[DE]--;
+		syncRegisterWithPair(D, DE);
+	};
+	CPU.Instructions[0x1c] =  () {
+		// INR E
+		setFlagACplus(CPU.registers[E], 1);
+		CPU.registers[E]++;
+		syncPairWithRegister(D, DE);
+		setFlagZ(CPU.registers[E]);
+		setFlagP(CPU.registers[E]);
+		setFlagS(CPU.registers[E]);
+	};
+	CPU.Instructions[0x1d] =  () {
+		// DCR E
+		setFlagACminus(CPU.registers[E], 1);
+		CPU.registers[E]--;
+		syncPairWithRegister(D, DE);
+		setFlagZ(CPU.registers[E]);
+		setFlagP(CPU.registers[E]);
+		setFlagS(CPU.registers[E]);
+	};
+	CPU.Instructions[0x1e] =  () {
+		// MVI E, D8
+		CPU.registers[E] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x1f] =  () {
+		// RAR
+		let d0 = 1 & CPU.registers[A];
+		let d7 = CPU.flags[CY] << 7;
+		CPU.registers[A] = CPU.registers[A] >> 1;
+		CPU.registers[A] = CPU.registers[A] | d7;		
+		CPU.flags[CY] = d0;
+	};
+	CPU.Instructions[0x21] =  () {
+		// LXI H, D16
+		CPU.registers[L] = CPU.RAM[CPU.programCounter++];
+		CPU.registers[H] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x22] =  () {
+		// SHLD adr
+		let address = getAddress();
+		CPU.RAM[address] = CPU.registers[L];
+		CPU.RAM[address + 1] = CPU.registers[H];
+	};
+	CPU.Instructions[0x23] =  () {
+		// INX H
+		CPU.registerPairs[HL]++;
+		syncRegisterWithPair(H, HL);
+	};
+	CPU.Instructions[0x24] =  () {
+		// INR H
+		setFlagACplus(CPU.registers[H], 1);
+		CPU.registers[H]++;
+		setFlagZ(CPU.registers[H]);
+		setFlagP(CPU.registers[H]);
+		setFlagS(CPU.registers[H]);
+	};
+	CPU.Instructions[0x25] =  () {
+		// DCR H
+		setFlagACminus(CPU.registers[H], 1);
+		CPU.registers[H]--;
+		setFlagZ(CPU.registers[H]);
+		setFlagP(CPU.registers[H]);
+		setFlagS(CPU.registers[H]);
+	};
+	CPU.Instructions[0x26] =  () {
+		// MVI H, D8
+		CPU.registers[H] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x29] =  () {
+		// DAD H
+		let temp = CPU.registerPairs[HL];
+		CPU.registerPairs[HL] += CPU.registerPairs[HL];
+		syncRegisterWithPair(H, HL);
+		setFlagCY(temp + CPU.registerPairs[HL], CPU.registerPairs[HL]);
+	};
+	CPU.Instructions[0x2a] =  () {
+		// LHLD adr
+		let address = getAddress();
+		CPU.registers[L] = CPU.RAM[address];
+		CPU.registers[H] = CPU.RAM[address + 1];
+	};
+	CPU.Instructions[0x2b] =  () {
+		// DCX H
+		CPU.registerPairs[HL]--;
+		syncRegisterWithPair(H, HL);
+	};
+	CPU.Instructions[0x2c] =  () {
+		// INR L
+		setFlagACplus(CPU.registers[L], 1);
+		CPU.registers[L]++;
+		syncPairWithRegister(H, HL);
+		setFlagZ(CPU.registers[L]);
+		setFlagP(CPU.registers[L]);
+		setFlagS(CPU.registers[L]);
+	};
+	CPU.Instructions[0x2d] =  () {
+		// DCR L
+		setFlagACminus(CPU.registers[L], 1);
+		CPU.registers[L]--;
+		setFlagZ(CPU.registers[L]);
+		setFlagP(CPU.registers[L]);
+		setFlagS(CPU.registers[L]);
+	};
+	CPU.Instructions[0x2e] =  () {
+		// MVI L, D8
+		CPU.registers[L] = CPU.RAM[CPU.programCounter++];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x2f] =  () {
+		// CMA
+		CPU.registers[A] = @bitwise::not(CPU.registers[A]);
+	};
+	CPU.Instructions[0x31] =  () {
+		// LXI SP, D16
+		let lo = CPU.RAM[CPU.programCounter++];
+		let hi = CPU.RAM[CPU.programCounter++];
+		CPU.registerPairs[SP] = (hi << 8) | lo;
+	};
+	CPU.Instructions[0x32] =  () {
+		// STA adr
+		let address = getAddress();
+		CPU.RAM[address] = CPU.registers[A];
+	};
+	CPU.Instructions[0x33] =  () {
+		// INX SP
+		CPU.registerPairs[SP]++;
+	};
+	CPU.Instructions[0x34] =  () {
+		// INR M
+		let M = CPU.registerPairs[HL];
+		setFlagACplus(CPU.RAM[M], 1);
+		CPU.RAM[M]++;
+		setFlagZ(CPU.RAM[M]);
+		setFlagP(CPU.RAM[M]);
+		setFlagS(CPU.RAM[M]);
+	};
+	CPU.Instructions[0x35] =  () {
+		// DCR M
+		let M = CPU.registerPairs[HL];
+		setFlagACminus(CPU.RAM[M], 1);
+		CPU.RAM[M]--;
+		setFlagZ(CPU.RAM[M]);
+		setFlagP(CPU.RAM[M]);
+		setFlagS(CPU.RAM[M]);
+	};
+	CPU.Instructions[0x36] =  () {
+		// MVI M, D8
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.RAM[CPU.programCounter++];
+	};
+	CPU.Instructions[0x37] =  () {
+		// STC
+		CPU.flags[CY] = 1;
+	};
+	CPU.Instructions[0x39] =  () {
+		// DAD SP
+		let temp = CPU.registerPairs[HL];
+		CPU.registerPairs[HL] += CPU.registerPairs[SP];
+		syncRegisterWithPair(H, HL);
+		setFlagCY(temp + CPU.registerPairs[SP], CPU.registerPairs[HL]);
+	};
+	CPU.Instructions[0x3a] =  () {
+		// LDA adr
+		let address = getAddress();
+		CPU.registers[A] = CPU.RAM[address];
+	};
+	CPU.Instructions[0x3b] =  () {
+		// DCX SP
+		CPU.registerPairs[SP]--;
+	};
+	CPU.Instructions[0x3c] =  () {
+		// INR A
+		setFlagACplus(CPU.registers[A], 1);
+		CPU.registers[A]++;
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0x3d] =  () {
+		// DCR A
+		setFlagACminus(CPU.registers[A], 1);
+		CPU.registers[A]--;
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0x3e] =  () {
+		// MVI A, D8
+		CPU.registers[A] = CPU.RAM[CPU.programCounter++];
+	};
+	CPU.Instructions[0x3f] =  () {
+		// CMC
+		CPU.flags[CY] = @bitwise::and(@bitwise::not(CPU.flags[CY]), 1);
+	};
+	CPU.Instructions[0x40] =  () {
+		// MOV B, B
+		CPU.registers[B] = CPU.registers[B];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x41] =  () {
+		// MOV B, C
+		CPU.registers[B] = CPU.registers[C];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x42] =  () {
+		// MOV B, D
+		CPU.registers[B] = CPU.registers[D];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x43] =  () {
+		// MOV B, E
+		CPU.registers[B] = CPU.registers[E];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x44] =  () {
+		// MOV B, H
+		CPU.registers[B] = CPU.registers[H];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x45] =  () {
+		// MOV B, L
+		CPU.registers[B] = CPU.registers[L];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x46] =  () {
+		// MOV B, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[B] = CPU.RAM[M];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x47] =  () {
+		// MOV B, A
+		CPU.registers[B] = CPU.registers[A];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x48] =  () {
+		// MOV C, B
+		CPU.registers[C] = CPU.registers[B];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x49] =  () {
+		// MOV C, C
+		CPU.registers[C] = CPU.registers[C];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4a] =  () {
+		// MOV C, D
+		CPU.registers[C] = CPU.registers[D];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4b] =  () {
+		// MOV C, E
+		CPU.registers[C] = CPU.registers[E];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4c] =  () {
+		// MOV C, H
+		CPU.registers[C] = CPU.registers[H];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4d] =  () {
+		// MOV C, L
+		CPU.registers[C] = CPU.registers[L];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4e] =  () {
+		// MOV C, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[C] = CPU.RAM[M];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x4f] =  () {
+		// MOV C, A
+		CPU.registers[C] = CPU.registers[A];
+		syncPairWithRegister(B, BC);
+	};
+	CPU.Instructions[0x50] =  () {
+		// MOV D, B
+		CPU.registers[D] = CPU.registers[B];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x51] =  () {
+		// MOV D, C
+		CPU.registers[D] = CPU.registers[C];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x52] =  () {
+		// MOV D, D
+		CPU.registers[D] = CPU.registers[D];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x53] =  () {
+		// MOV D, E
+		CPU.registers[D] = CPU.registers[E];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x54] =  () {
+		// MOV D, H
+		CPU.registers[D] = CPU.registers[H];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x55] =  () {
+		// MOV D, L
+		CPU.registers[D] = CPU.registers[L];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x56] =  () {
+		// MOV D, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[D] = CPU.RAM[M];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x57] =  () {
+		// MOV D, L
+		CPU.registers[D] = CPU.registers[A];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x58] =  () {
+		// MOV E, B
+		CPU.registers[E] = CPU.registers[B];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x59] =  () {
+		// MOV E, C
+		CPU.registers[E] = CPU.registers[C];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5a] =  () {
+		// MOV E, D
+		CPU.registers[E] = CPU.registers[D];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5b] =  () {
+		// MOV E, E
+		CPU.registers[E] = CPU.registers[E];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5c] =  () {
+		// MOV E, H
+		CPU.registers[E] = CPU.registers[H];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5d] =  () {
+		// MOV E, L
+		CPU.registers[E] = CPU.registers[L];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5e] =  () {
+		// MOV E, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[E] = CPU.RAM[M];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x5f] =  () {
+		// MOV E, A
+		CPU.registers[E] = CPU.registers[A];
+		syncPairWithRegister(D, DE);
+	};
+	CPU.Instructions[0x60] =  () {
+		// MOV H, B
+		CPU.registers[H] = CPU.registers[B];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x61] =  () {
+		// MOV H, C
+		CPU.registers[H] = CPU.registers[C];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x62] =  () {
+		// MOV H, D
+		CPU.registers[H] = CPU.registers[D];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x63] =  () {
+		// MOV H, E
+		CPU.registers[H] = CPU.registers[E];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x64] =  () {
+		// MOV H, H
+		CPU.registers[H] = CPU.registers[H];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x65] =  () {
+		// MOV H, L
+		CPU.registers[H] = CPU.registers[L];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x66] =  () {
+		// MOV H, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[H] = CPU.RAM[M];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x67] =  () {
+		// MOV H, A
+		CPU.registers[H] = CPU.registers[A];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x68] =  () {
+		// MOV L, B
+		CPU.registers[L] = CPU.registers[B];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x69] =  () {
+		// MOV L, C
+		CPU.registers[L] = CPU.registers[C];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6a] =  () {
+		// MOV L, D
+		CPU.registers[L] = CPU.registers[D];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6b] =  () {
+		// MOV L, E
+		CPU.registers[L] = CPU.registers[E];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6c] =  () {
+		// MOV L, H
+		CPU.registers[L] = CPU.registers[H];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6d] =  () {
+		// MOV L, L
+		CPU.registers[L] = CPU.registers[L];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6e] =  () {
+		// MOV L, M
+		let M = CPU.registerPairs[HL];
+		CPU.registers[L] = CPU.RAM[M];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x6f] =  () {
+		// MOV L, A
+		CPU.registers[L] = CPU.registers[A];
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0x70] =  () {
+		// MOV M, B
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[B];
+	};
+	CPU.Instructions[0x71] =  () {
+		// MOV M, C
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[C];
+	};
+	CPU.Instructions[0x72] =  () {
+		// MOV M, D
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[D];
+	};
+	CPU.Instructions[0x73] =  () {
+		// MOV M, E
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[E];
+	};
+	CPU.Instructions[0x74] =  () {
+		// MOV M, H
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[H];
+	};
+	CPU.Instructions[0x75] =  () {
+		// MOV M, L
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[L];
+	};
+	CPU.Instructions[0x76] =  () {
+		// HLT
+		CPU.State.HLTA = true;
+	};
+	CPU.Instructions[0x77] =  () {
+		// MOV M, A
+		let M = CPU.registerPairs[HL];
+		CPU.RAM[M] = CPU.registers[A];
+	};
+	CPU.Instructions[0x78] =  () {
+		// MOV A, B
+		CPU.registers[A] = CPU.registers[B];
+	};
+	CPU.Instructions[0x79] =  () {
+		// MOV A, C
+		CPU.registers[A] = CPU.registers[C];
+	};
+	CPU.Instructions[0x7a] =  () {
+		// MOV A, D
+		CPU.registers[A] = CPU.registers[D];
+	};
+	CPU.Instructions[0x7b] =  () {
+		// MOV A, E
+		CPU.registers[A] = CPU.registers[E];
+	};
+	CPU.Instructions[0x7c] =  () {
+		// MOV A, H
+		CPU.registers[A] = CPU.registers[H];
+	};
+	CPU.Instructions[0x7d] =  () {
+		// MOV A, L
+		CPU.registers[A] = CPU.registers[L];
+	};
+	CPU.Instructions[0x7e] =  () {
+		// MOV A, M
+		let M = CPU.registerPairs[HL]
+		CPU.registers[A] = CPU.RAM[M];
+	};
+	CPU.Instructions[0x7f] =  () {
+		// MOV A, A
+		CPU.registers[A] = CPU.registers[A];
+	};
+	CPU.Instructions[0x80] =  () {
+		// ADD B
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[B]);
+		CPU.registers[A] += CPU.registers[B];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[B], CPU.registers[A]);
+	};
+	CPU.Instructions[0x81] =  () {
+		// ADD C
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[C]);
+		CPU.registers[A] += CPU.registers[C];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[C], CPU.registers[A]);
+	};
+	CPU.Instructions[0x82] =  () {
+		// ADD D
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[D]);
+		CPU.registers[A] += CPU.registers[D];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[D], CPU.registers[A]);
+	};
+	CPU.Instructions[0x83] =  () {
+		// ADD E
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[E]);
+		CPU.registers[A] += CPU.registers[E];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[E], CPU.registers[A]);
+	};
+	CPU.Instructions[0x84] =  () {
+		// ADD H
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[H]);
+		CPU.registers[A] += CPU.registers[H];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[H], CPU.registers[A]);
+	};
+	CPU.Instructions[0x85] =  () {
+		// ADD L
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[L]);
+		CPU.registers[A] += CPU.registers[L];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[L], CPU.registers[A]);
+	};
+	CPU.Instructions[0x86] =  () {
+		// ADD M
+		let M = CPU.registerPairs[HL];
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.RAM[M]);
+		CPU.registers[A] += CPU.RAM[M];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.RAM[M], CPU.registers[A]);
+	};
+	CPU.Instructions[0x87] =  () {
+		// ADD A
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[A]);
+		CPU.registers[A] += CPU.registers[A];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + temp, CPU.registers[A]);
+	};
+	CPU.Instructions[0x88] =  () {
+		// ADC B
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[B] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[B] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[B] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x89] =  () {
+		// ADC C
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[C] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[C] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[C] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8a] =  () {
+		// ADC D
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[D] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[D] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[D] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8b] =  () {
+		// ADC E
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[E] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[E] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[E] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8c] =  () {
+		// ADC H
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[H] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[H] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[H] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8d] =  () {
+		// ADC L
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[L] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[L] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.registers[L] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8e] =  () {
+		// ADC M
+		let temp = CPU.registers[A];
+		let M = CPU.registerPairs[HL];
+		setFlagACplus(CPU.registers[A], CPU.RAM[M] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.RAM[M] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + CPU.RAM[M] + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x8f] =  () {
+		// ADC A
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], CPU.registers[A] + CPU.flags[CY]);
+		CPU.registers[A] += CPU.registers[A] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp + temp + CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x90] =  () {
+		// SUB B
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[B]);
+		CPU.registers[A] -= CPU.registers[B];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[B], CPU.registers[A]);
+	};
+	CPU.Instructions[0x91] =  () {
+		// SUB C
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[C]);
+		CPU.registers[A] -= CPU.registers[C];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[C], CPU.registers[A]);
+	};
+	CPU.Instructions[0x92] =  () {
+		// SUB D
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[D]);
+		CPU.registers[A] -= CPU.registers[D];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[D], CPU.registers[A]);
+	};
+	CPU.Instructions[0x93] =  () {
+		// SUB E
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[E]);
+		CPU.registers[A] -= CPU.registers[E];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[E], CPU.registers[A]);
+	};
+	CPU.Instructions[0x94] =  () {
+		// SUB H
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[H]);
+		CPU.registers[A] -= CPU.registers[H];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[H], CPU.registers[A]);
+	};
+	CPU.Instructions[0x95] =  () {
+		// SUB L
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[L]);
+		CPU.registers[A] -= CPU.registers[L];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[L], CPU.registers[A]);
+	};
+	CPU.Instructions[0x96] =  () {
+		// SUB M
+		let M = CPU.registerPairs[HL];
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.RAM[M]);
+		CPU.registers[A] -= CPU.RAM[M];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.RAM[M], CPU.registers[A]);
+	};
+	CPU.Instructions[0x97] =  () {
+		// SUB A
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[A]);
+		CPU.registers[A] -= CPU.registers[A];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - temp, CPU.registers[A]);
+	};
+	CPU.Instructions[0x98] =  () {
+		// SBB B
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[B] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[B] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[B] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x99] =  () {
+		// SBB C
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[C] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[C] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[C] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9a] =  () {
+		// SBB D
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[D] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[D] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[D] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9b] =  () {
+		// SBB E
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[E] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[E] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[E] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9c] =  () {
+		// SBB H
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[H] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[H] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[H] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9d] =  () {
+		// SBB L
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[L] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[L] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.registers[L] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9e] =  () {
+		// SBB M
+		let M = CPU.registerPairs[HL];
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.RAM[M] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.RAM[M] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - CPU.RAM[M] - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0x9f] =  () {
+		// SBB A
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], CPU.registers[A] + CPU.flags[CY]);
+		CPU.registers[A] -= CPU.registers[A] + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagCY(temp - temp - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0xa0] =  () {
+		// ANA B
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[B]); 
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[B];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa1] =  () {
+		// ANA C
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[C]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[C];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa2] =  () {
+		// ANA D
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[D]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[D];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa3] =  () {
+		// ANA E
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[E]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[E];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa4] =  () {
+		// ANA H
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[H]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[H];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa5] =  () {
+		// ANA L
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[L]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[L];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa6] =  () {
+		// ANA M, Note: The 8080 logical AND instructions set the AC flag to reflect the logical OR of bit 3 of the values involved in the AND operation
+		let M = CPU.registerPairs[HL];
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.RAM[M]);
+		CPU.registers[A] = CPU.registers[A] & CPU.RAM[M];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa7] =  () {
+		// ANA A
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & CPU.registers[A]);
+		CPU.registers[A] = CPU.registers[A] & CPU.registers[A];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xa8] =  () {
+		// XRA B
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[B];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xa9] =  () {
+		// XRA C
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[C];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xaa] =  () {
+		// XRA D
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[D];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xab] =  () {
+		// XRA E
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[E];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xac] =  () {
+		// XRA H
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[H];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xad] =  () {
+		// XRA L
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[L];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xae] =  () {
+		// XRA M
+		let M = CPU.registerPairs[HL];
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.RAM[M];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xaf] =  () {
+		// XRA A
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ CPU.registers[A];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb0] =  () {
+		// ORA B
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[B];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb1] =  () {
+		// ORA C
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[C];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb2] =  () {
+		// ORA D
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[D];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb3] =  () {
+		// ORA E
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[E];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb4] =  () {
+		// ORA H
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[H];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb5] =  () {
+		// ORA L
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[L];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb6] =  () {
+		// ORA M
+		let M = CPU.registerPairs[HL];
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.RAM[M];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb7] =  () {
+		// ORA A
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | CPU.registers[A];
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xb8] =  () {
+		// CMP B
+		if (CPU.registers[A] == CPU.registers[B]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[B]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xb9] =  () {
+		// CMP C
+		if (CPU.registers[A] == CPU.registers[C]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[C]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xba] =  () {
+		// CMP D
+		if (CPU.registers[A] == CPU.registers[D]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[D]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xbb] =  () {
+		// CMP E
+		if (CPU.registers[A] == CPU.registers[E]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[E]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xbc] =  () {
+		// CMP H
+		if (CPU.registers[A] == CPU.registers[H]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[H]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xbd] =  () {
+		// CMP L
+		if (CPU.registers[A] == CPU.registers[L]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.registers[L]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xbe] =  () {
+		// CMP M
+		let M = CPU.registerPairs[HL];
+		if (CPU.registers[A] == CPU.RAM[M]) {
+			CPU.flags[Z] = 1;
+		} else if (CPU.registers[A] < CPU.RAM[M]) {
+			CPU.flags[CY] = 1;
+		}
+	};
+	CPU.Instructions[0xbf] =  () {
+		// CMP A
+		if (CPU.registers[A] == CPU.registers[A]) {
+			CPU.flags[Z] = 1;
+			CPU.flags[CY] = 0;
+		} else if (CPU.registers[A] < CPU.registers[A]) {
+			CPU.flags[CY] = 1;
+			CPU.flags[Z] = 0;
+		}
+	};
+	CPU.Instructions[0xc0] =  () {
+		// RNZ
+		if (!CPU.flags[Z]) {
+			let topHi = CPU.RAM[CPU.registerPairs[SP] + 1];
+			let topLo = CPU.RAM[CPU.registerPairs[SP]];
+			CPU.programCounter = (topHi << 8) | topLo;
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xc1] =  () {
+		// POP B
+		CPU.registers[C] = CPU.RAM[CPU.registerPairs[SP]];
+		CPU.registers[B] = CPU.RAM[CPU.registerPairs[SP] + 1];
+		syncPairWithRegister(B, BC);
+		CPU.registerPairs[SP] += 2;
+	};
+	CPU.Instructions[0xc2] =  () {
+		// JNZ adr
+		let address = getAddress();
+		if (!CPU.flags[Z]) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xc3] =  () {
+		// JMP adr
+		let address = getAddress();
+		CPU.programCounter = address;
+	};
+	CPU.Instructions[0xc4] =  () {
+		// CNZ adr
+		let address = getAddress();
+		if (!CPU.flags[Z]) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xc5] =  () {
+		// PUSH B
+		CPU.RAM[CPU.registerPairs[SP] - 1] = CPU.registers[B];
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.registers[C];
+		CPU.registerPairs[SP] -= 2;
+	};
+	CPU.Instructions[0xc6] =  () {
+		// ADI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], value);
+		CPU.registers[A] += value;
+		setFlagZ(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagCY(temp + value, CPU.registers[A]);
+	};
+	CPU.Instructions[0xc7] =  () {
+		// RST 0
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00f0;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x00;
+	};
+	CPU.Instructions[0xc8] =  () {
+		// RZ
+		if (CPU.flags[Z]) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xc9] =  () {
+		// RET
+		CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+		CPU.registerPairs[SP] += 2;
+	};
+	CPU.Instructions[0xca] =  () {
+		// JZ adr
+		let address = getAddress();
+		if (CPU.flags[Z]) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xcc] =  () {
+		// CZ adr
+		let address = getAddress();
+		if (CPU.flags[C]) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xcd] =  () {
+		// CALL adr
+		let address = getAddress();
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = address;
+	};
+	CPU.Instructions[0xce] =  () {
+		// ACI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		let temp = CPU.registers[A];
+		setFlagACplus(CPU.registers[A], value + 1);
+		CPU.registers[A] += value + 1;
+		setFlagZ(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagCY(temp + value + 1, CPU.registers[A]);
+	};
+	CPU.Instructions[0xcf] =  () {
+		// RST 1
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2]  = CPU.programCounter & 0xff00;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x08;
+	};
+	CPU.Instructions[0xd0] =  () {
+		// RNC
+		if (!CPU.flags[CY]) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xd1] =  () {
+		// POP D
+		CPU.registers[E] = CPU.RAM[CPU.registerPairs[SP]];
+		CPU.registers[D] = CPU.RAM[CPU.registerPairs[SP] + 1];
+		syncPairWithRegister(D, DE);
+		CPU.registerPairs[SP] += 2;
+	};
+	CPU.Instructions[0xd2] =  () {
+		// JNC adr
+		let address = getAddress();
+		if (!CPU.flags[CY]) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xd3] =  () {
+		// OUT D8
+		let port = CPU.RAM[CPU.programCounter++];
+		$.print("Sending output to port: " + port);
+		// document.getElementById('Display').innerHTML += String.fromCharCode(CPU.registers[A]);
+		invaderOUT(port);
+	};
+	CPU.Instructions[0xd4] =  () {
+		// CNC adr
+		let address = getAddress();
+		if (!CPU.flags[CY]) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xd5] =  () {
+		// PUSH D
+		CPU.RAM[CPU.registerPairs[SP] - 1] = CPU.registers[D];
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.registers[E];
+		CPU.registerPairs[SP] -= 2;
+	};
+	CPU.Instructions[0xd6] =  () {
+		// SUI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], value);
+		CPU.registers[A] -= value;
+		setFlagZ(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagCY(temp - value, CPU.registers[A]);
+	};
+	CPU.Instructions[0xd7] =  () {
+		// RST 2
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+		CPU.registerPairs[SP] += 2;
+		CPU.programCounter = 0x10;
+	};
+	CPU.Instructions[0xd8] =  () {
+		// RC
+		if (CPU.flags[CY]) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xda] =  () {
+		// JC adr
+		let address = getAddress();
+		if (CPU.flags[CY]) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xdb] =  () {
+		// IN D8
+		let port = CPU.RAM[CPU.programCounter++];
+		$.print("Getting input from port: " + port);
+		invaderIN(port);
+	};
+	CPU.Instructions[0xdc] =  () {
+		// CC adr
+		let address = getAddress();
+		if (CPU.flags[CY]) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xde] =  () {
+		// SBI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		let temp = CPU.registers[A];
+		setFlagACminus(CPU.registers[A], value + CPU.flags[CY]);
+		CPU.registers[A] -= value + CPU.flags[CY];
+		setFlagZ(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagCY(temp - value - CPU.flags[CY], CPU.registers[A]);
+	};
+	CPU.Instructions[0xdf] =  () {
+		// RST 3
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x18;
+	};
+	CPU.Instructions[0xe0] =  () {
+		// RPO
+		if (CPU.flags[P] == 0) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xe1] =  () {
+		// POP H
+		CPU.registers[L] = CPU.RAM[CPU.registerPairs[SP]];
+		CPU.registers[H] = CPU.RAM[CPU.registerPairs[SP] + 1];
+		syncPairWithRegister(H, HL);
+		CPU.registerPairs[SP] += 2;
+	};
+	CPU.Instructions[0xe2] =  () {
+		// JPO adr
+		let address = getAddress();
+		if (flags[P] == 0) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xe3] =  () {
+		// XTHL
+		let temp = CPU.registers[L];
+		CPU.registers[L] = CPU.RAM[CPU.registerPairs[SP]];
+		CPU.RAM[CPU.registerPairs[SP]] = temp;
+		temp = CPU.registers[H];
+		CPU.registers[H] = CPU.RAM[CPU.registerPairs[SP] + 1];
+		CPU.RAM[CPU.registerPairs[SP]] = temp;
+		syncPairWithRegister(H, HL);
+	};
+	CPU.Instructions[0xe4] =  () {
+		// CPO adr
+		let address = getAddress();
+		if (CPU.flags[P] == 0) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xe5] =  () {
+		// PUSH H
+		CPU.RAM[CPU.registerPairs[SP] - 1] = CPU.registers[H];
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.registers[L];
+		CPU.registerPairs[SP] -= 2;
+	};
+	CPU.Instructions[0xe6] =  () {
+		// ANI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		CPU.flags[AC] = (0x8 & CPU.registers[A]) | (0x8 & value); 
+		CPU.registers[A] = CPU.registers[A] & value;
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+		CPU.flags[CY] = 0;
+	};
+	CPU.Instructions[0xe7] =  () {
+		// RST 4
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00f0;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x20;
+	};
+	CPU.Instructions[0xe8] =  () {
+		if (CPU.flags[P] == 1) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xe9] =  () {
+		// PCHL
+		CPU.programCounter = (CPU.registers[H] << 8) | CPU.registers[L];
+	};
+	CPU.Instructions[0xea] =  () {
+		// JPE adr
+		let address = getAddress();
+		if (flags[P] == 1) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xeb] =  () {
+		// XCHG
+		let temp = CPU.registerPairs[HL];
+		CPU.registerPairs[HL] = CPU.registerPairs[DE];
+		CPU.registerPairs[DE] = temp;
+		syncRegisterWithPair(H, HL);
+		syncRegisterWithPair(D, DE);
+	};
+	CPU.Instructions[0xec] =  () {
+		// CPE adr
+		let address = getAddress();
+		if (CPU.flags[P] == 1) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xee] =  () {
+		// XRI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] ^ value;
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xef] =  () {
+		// RST 5
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00f0;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x28;
+	};
+	CPU.Instructions[0xf0] =  () {
+		// RP
+		if (CPU.flags[S] == 0) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xf1] =  () {
+		// POP PSW
+		CPU.registers[A] = CPU.RAM[CPU.registerPairs[SP] + 1];
+		let value = CPU.RAM[CPU.registerPairs[SP]];
+		CPU.flags[CY] = (value & 1);
+		CPU.flags[P] = (value & (1 << 2)) >> 2;
+		CPU.flags[AC] = (value & (1 << 4)) >> 4;
+		CPU.flags[Z] = (value & (1 << 6)) >> 6;
+		CPU.flags[S] = (value & (1 << 7)) >> 7;
+		CPU.registerPairs[SP] += 2;
+	};
+	CPU.Instructions[0xf2] =  () {
+		// JP adr
+		let address = getAddress();
+		if (CPU.flags[S] == 0) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xf3] =  () {
+		// DI
+		CPU.State.INTE = false;
+	};
+	CPU.Instructions[0xf4] =  () {
+		// CP adr
+		let address = getAddress();
+		if (CPU.flags[S] == 0) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xf5] =  () {
+		// PUSH PSW
+		let value = 0x02;
+		value = @bitwise::or(value, CPU.flags[CY]);
+		value = @bitwise::or(value, @bitwise::lshift(CPU.flags[P], 2));
+		value = @bitwise::or(value, @bitwise::lshift(CPU.flags[AC], 4))
+		value = @bitwise::or(valie, @bitwise::lshift(CPU.flags[Z], 6));
+		value = @bitwise::or(value, @bitwise::lshift(CPU.flags[S], 7));
+		CPU.RAM[CPU.registerPairs[SP] - 2] = value;
+		CPU.RAM[CPU.registerPairs[SP] - 1] = CPU.registers[A];
+		CPU.registerPairs[SP] -= 2;
+	};
+	CPU.Instructions[0xf6] =  () {
+		// ORI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		CPU.flags[AC] = CPU.flags[CY] = 0;
+		CPU.registers[A] = CPU.registers[A] | value;
+		setFlagZ(CPU.registers[A]);
+		setFlagP(CPU.registers[A]);
+		setFlagS(CPU.registers[A]);
+	};
+	CPU.Instructions[0xf7] =  () {
+		// RST 6
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00f0;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x30;
+	};
+	CPU.Instructions[0xf8] =  () {
+		// RM
+		if (CPU.flags[S] == 1) {
+			CPU.programCounter = (CPU.RAM[CPU.registerPairs[SP] + 1] << 8) | CPU.RAM[CPU.registerPairs[SP]];
+			CPU.registerPairs[SP] += 2;
+		}
+	};
+	CPU.Instructions[0xf9] =  () {
+		// SPHL
+		CPU.registerPairs[SP] = CPU.registerPairs[HL];
+	};
+	CPU.Instructions[0xfa] =  () {
+		// JM adr
+		let address = getAddress();
+		if (CPU.flags[S] == 1) {
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xfb] =  () {
+		// EI
+		CPU.State.INTE = true;
+	};
+	CPU.Instructions[0xfc] =  () {
+		// CM adr
+		let address = getAddress();
+		if (CPU.flags[S] == 1) {
+			CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+			CPU.RAM[CPU.registerPairs[SP] - 2] = (CPU.programCounter & 0x00ff);
+			CPU.registerPairs[SP] -= 2;
+			CPU.programCounter = address;
+		}
+	};
+	CPU.Instructions[0xfe] =  () {
+		// CPI D8
+		let value = CPU.RAM[CPU.programCounter++];
+		let result = CPU.registers[A] - value;
+		setFlagZ(result);
+		setFlagP(result);
+		setFlagS(result);
+		setFlagCY(result, result & 0xff);
+	};
+	CPU.Instructions[0xff] =  () {
+		// RST 7
+		CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+		CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00f0;
+		CPU.registerPairs[SP] -= 2;
+		CPU.programCounter = 0x38;
+	};
+}
+
+let getAddress = () {
+	let byte2 = CPU.RAM[CPU.programCounter++];
+	let byte3 = CPU.RAM[CPU.programCounter++];
+	return (byte3 << 8) | byte2;
+}
+
+let syncPairWithRegister = (r, p) {
+	CPU.registerPairs[p] = (CPU.registers[r] << 8) | CPU.registers[r + 1];
+}
+
+let syncRegisterWithPair = (r, p) {
+	CPU.registers[r] = CPU.registerPairs[p] >> 8;
+	CPU.registers[r + 1] = (CPU.registerPairs[p] & 0x00ff);
+}
+
+let setFlagZ = (result) {
+	CPU.flags[Z] = plus(result == 0);
+}
+
+let setFlagS = (result) {
+	CPU.flags[S] = (result & 0x80) >> 7;
+}
+
+let setFlagP = (result) {
+	let ones = 0
+    let mask = 0x80;
+	while (mask) {
+		if (mask & result) {
+			ones++;
+		}
+		mask = mask >> 1;
+	}
+	if (ones & 1) {
+		return CPU.flags[P] = 0;
+	}
+	CPU.flags[P] = 1;
+}
+
+let setFlagCY = (supposed, actual) {
+	CPU.flags[CY] = plus(supposed != actual);
+}
+
+let setFlagACplus = (before, value) {
+	let mask = 1;
+	let carry = 0;
+	for i in 0..4 {
+		if ((mask & before) + (mask & value) + carry > 1) {
+			carry = 1;
+		} else {
+			carry = 0;
+		}
+		mask = mask << 1;
+	}
+	if (carry) {
+		return CPU.flags[AC] = 1;
+	}
+	CPU.flags[AC] = 0;
+}
+
+let setFlagACminus = (before, value) {
+	let borrow = 0;
+	let mask = 1 << 3;
+	for i in 0..4 {
+		if ((mask & before) < (mask & value)) {
+			if (borrow) {
+				borrow--;
+			} else {
+				borrow = -1;
+				break;
+			}
+		} else if (mask & before) {
+			borrow++;
+		}
+		mask = mask >> 1;
+	}
+	if (borrow == -1) {
+		return CPU.flags[AC] = 1;
+	}
+	CPU.flags[AC] = 1;
+}
+
+let wait = () {
+	CPU.State.HLTA = true;
+}
+
+let processOpcode = () {
+	// FETCH
+	let opcode = CPU.RAM[CPU.programCounter++];
+	// $.print("Processing OpCode: " + opcode.toString(16));
+	// $.print("Program Counter: " + CPU.programCounter);
+	CPU.Instructions[opcode]();
+}
+
+let callInterrupt = (address) {
+	CPU.RAM[CPU.registerPairs[SP] - 1] = (CPU.programCounter & 0xff00) >> 8;
+	CPU.RAM[CPU.registerPairs[SP] - 2] = CPU.programCounter & 0x00ff;
+	CPU.registerPairs[SP] -= 2;
+	CPU.programCounter = address;
+}
+
+let runProgram = () {
+    let update = () {
+		for i in 0..100 {
+			if (!CPU.State.HLTA) {
+				processOpcode();
+			}
+		}
+		if (CPU.State.INTE) {
+				callInterrupt(0x08);		
+				callInterrupt(0x10);
+		}
+		drawScene();
+		// drawCalls
+		let now = $.time();
+		elapsedTime = @number(now - lastTime);
+		drawCalls++;
+	    if (elapsedTime >= 1000) {
+	    	$.print("Draw Calls: " + drawCalls);
+	    	drawCalls = 0;
+	    	lastTime = now;
+	    }
+		requestAnimationFrame(update);
+	}
+	initDisplay();
+	requestAnimationFrame(update);
+}
+
+let machine = loadCPU()
