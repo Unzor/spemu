@@ -217,13 +217,11 @@ impl @bitstring {
 let CPU;
 
 let Uint8Array = (n) {
-    let r = '0'*n
-    return r.split('').map(x=>@number(x))
+	return [0]*n
 }
 
 let Array = (n) {
-    let r = '0'*n
-    return r.split('').map(x=>null)
+	return [null]*n
 }
 
 // Globals for referring to registers
